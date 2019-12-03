@@ -14,7 +14,6 @@
 ;
 ;Update history
 ;09/01/2018   first commit
-;12/03/2019   modify the constraints
 ;---------------------------------------------------------------------------------
 
 ; -------------------------------------------------------------------------------------------------------------------
@@ -60,7 +59,7 @@ pro LMGM
   DN_max=10000.0
   scale_factor=16.0              ;set the scale factor, it is integer=coarse resolution/fine resolution, e.g., 480/30=16
   
-  Basename = 'G:\PrivateFiles\2018秋季课程\遥感数字图像处理\NDVI_LMGM\data\Time_series\'
+  Basename = 'G:\'
   ;------------------------------------------------------------------------
 
   ;open the first coarse NDVI
@@ -153,8 +152,8 @@ pro LMGM
       b = reform(coarseChange[ai:bi, aj:bj], n_N)*1.0
       A = reform(coarseAbun[ai:bi, aj:bj, *], n_N, classNumber)
 
-      xub=fltarr(classNumber,1) + min([maxK_coarse+stdK_coarse,1])
-      xlb=fltarr(classNumber,1) + max([minK_coarse-stdK_coarse,0])
+      xub=fltarr(classNumber,1) + maxK_coarse+stdK_coarse
+      xlb=fltarr(classNumber,1) + minK_coarse-stdK_coarse
       c=fltarr(1,classNumber)+1
       bc=[n_N*(maxK_coarse+stdK_coarse)]
       contype=[1]
