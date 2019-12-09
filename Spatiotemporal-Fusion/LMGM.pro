@@ -51,7 +51,7 @@ pro LMGM
 
   ;please set the following parameters
   ;----------------------------------------------------------------------
-  winS=3                       ;set the half window size
+  winS=1                       ;set the half window size
   ;winO=1                       ;set the overlap of window
   min_class=4.0                ;set the estimated minimum and maximum number of classes
   max_class=6.0
@@ -143,9 +143,9 @@ pro LMGM
   for i = 0, ns_coarse-1 do begin
     for j = 0, nl_coarse-1 do begin
       ai=max([0,i-winS])                         ; the MODIS window location
-      bi=min([ns_coarse-1,i+winS-1])             
+      bi=min([ns_coarse-1,i+winS])             
       aj=max([0,j-winS])
-      bj=min([nl_coarse-1,j+winS-1])
+      bj=min([nl_coarse-1,j+winS])
 
 
       n_N = (bi-ai) * (bj-aj+1)
