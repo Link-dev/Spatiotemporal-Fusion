@@ -51,7 +51,7 @@ pro LMGM
 
   ;please set the following parameters
   ;----------------------------------------------------------------------
-  winS=1                       ;set the half window size
+  winS=2                       ;set the half window size， too small windows size will cause the equation to be undertermined!
   ;winO=1                       ;set the overlap of window
   min_class=4.0                ;set the estimated minimum and maximum number of classes
   max_class=6.0
