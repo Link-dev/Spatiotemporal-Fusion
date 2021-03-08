@@ -4,16 +4,20 @@
 ;
 ;This code is developed for remote sensing image spatiotemporal fusion.
 ;
-;Input: Coarse image at t1 and , fine image at t1
+;Input: Coarse image at t1 and fine image at t1
 ;Output: fine image at t2
+;Note: this code is implemented based on the single pair of Landsat and MODIS at t1 with a MODIS image at t2,
+;but he original NDVI_LMGM could deal with the multiple pairs of Landsat and MODIS images.
+;
 ;
 ;parameter:
 ;     in the head of the main function
 ;
-;Developed by Zhou Junxiong, email: zjxrs2018@mail.bnu.edu.cn
+;Developed by Junxiong Zhou, email: zjxrs2018@mail.bnu.edu.cn
 ;
 ;Update history
 ;09/01/2018   first commit
+;03/08/2021   revised by Junxiong
 ;---------------------------------------------------------------------------------
 
 ; -------------------------------------------------------------------------------------------------------------------
@@ -51,152 +55,128 @@ pro LMGM
 
   ;please set the following parameters
   ;----------------------------------------------------------------------
-  winS=2                       ;set the half window size， too small windows size will cause the equation to be undertermined!
-  ;winO=1                       ;set the overlap of window
+  winS=3                       ;set the half window size
   min_class=4.0                ;set the estimated minimum and maximum number of classes
   max_class=6.0
   DN_min=0.0                   ;set the range of DN value of the image,If byte, 0 and 255
   DN_max=10000.0
-  scale_factor=16.0              ;set the scale factor, it is integer=coarse resolution/fine resolution, e.g., 480/30=16
+  sf=16.0                      ;set the scale factor, it is integer=coarse resolution/fine resolution, e.g., 480/30=16
   
-  Basename = 'G:\'
   ;------------------------------------------------------------------------
-
-  ;open the first coarse NDVI
-  CoarseNDVI1 = Basename + 'T3_480_NDVI'
-  GetData,ImgData=coarse1,FileName = CoarseNDVI1, Fid=fid1
-  envi_file_query,fid1,ns=ns_coarse,nl=nl_coarse,nb=nb_coarse,dims=dims_coarse
+  Basename = 'D:\'
+  ;open the first coarse NDVI at t1
+  coarseFile1 = Basename + 'MOD_2001_10_07'
+  GetData,ImgData=coarse1,FileName = coarseFile1, Fid=fid1
+  envi_file_query,fid1,ns=nsc, nl=nlc, nb=nbc, dims=dims_coarse
   
-  ;open the second coarse NDVI
-  CoarseNDVI2 = Basename + 'T2_480_NDVI'
-  GetData,ImgData=coarse2,FileName = CoarseNDVI2, Fid=fid2
+  ;open the second coarse NDVI at t2
+  coarseFile2 = Basename + 'MOD_2002_01_04'
+  GetData,ImgData=coarse2,FileName = coarseFile2, Fid=fid2
 
-  ;open the fine img
-  FineNDVI = Basename + 'T3_NDVI'
-  GetData,ImgData=fine,FileName = FineNDVI, Fid=fid3
-  envi_file_query,fid3,ns=ns_fine,nl=nl_fine,nb=nb_fine,dims=dims_fine
+  ;open the fine img at t1
+  fineFile = Basename + 'LT_2001_10_07'
+  GetData,ImgData=fine,FileName = fineFile, Fid=fid3
+  envi_file_query,fid3,ns=ns, nl=nl, nb=nb, dims=dims_fine
+  
+  OutName = fineFile + '_LMGM'; Results Name
   
   ;open the fine img for classification
-  FineImg = Basename + 'L7_2001_11_01_flaash_CIA_patch_img'
-  GetData,ImgData=Img,FileName = FineImg, Fid=fid4
-  
-  
-  ;get spectral classes from fine resolution image at fine by isodata
-  ;parameter of isodata
-  CHANGE_THRESH = .05
-  NUM_CLASSES = max_class
-  ITERATIONS = 20
-  ISO_MERGE_DIST = 0.05*DN_max
-  ISO_MERGE_PAIRS = 2
-  ISO_MIN_PIXELS = 200
-  ISO_SPLIT_SMULT = 1
-  ISO_SPLIT_STD = 0.05*DN_max
-  MIN_CLASSES = min_class
-  out_bname = 'IsoData'
-  out_name=FineImg+'class_ISODATA'
-  ENVI_DOIT, 'class_doit', fid=fid4, pos=indgen(nb_fine), dims=dims_fine, $
-    out_bname=out_bname, out_name=out_name, method=4, $
-    r_fid=r_fid, $
-    NUM_CLASSES = NUM_CLASSES, $
-    ITERATIONS = ITERATIONS, $
-    CHANGE_THRESH = CHANGE_THRESH, $
-    ISO_MERGE_DIST = ISO_MERGE_DIST, $
-    ISO_MERGE_PAIRS = ISO_MERGE_PAIRS, $
-    ISO_MIN_PIXELS = ISO_MIN_PIXELS, $
-    ISO_SPLIT_SMULT = ISO_SPLIT_SMULT, $
-    ISO_SPLIT_STD = ISO_SPLIT_STD, $
-    MIN_CLASSES = MIN_CLASSES
+  classMap = fineFile + '_ISODATA'
+  if ~file_test(classMap) then begin
+    ;get spectral classes from fine resolution image at fine by isodata
+    ;parameter of isodata
+    CHANGE_THRESH = .05
+    NUM_CLASSES = max_class
+    ITERATIONS = 20
+    ISO_MERGE_DIST = 0.05*DN_max
+    ISO_MERGE_PAIRS = 2
+    ISO_MIN_PIXELS = 200
+    ISO_SPLIT_SMULT = 1
+    ISO_SPLIT_STD = 0.05*DN_max
+    MIN_CLASSES = min_class
+    out_bname = 'IsoData'
+    out_name=fineFile+'_ISODATA'
+    ENVI_DOIT, 'class_doit', fid=fid3, pos=indgen(nb), dims=dims_fine, $
+      out_bname=out_bname, out_name=out_name, method=4, $
+      r_fid=r_fid, $
+      NUM_CLASSES = NUM_CLASSES, $
+      ITERATIONS = ITERATIONS, $
+      CHANGE_THRESH = CHANGE_THRESH, $
+      ISO_MERGE_DIST = ISO_MERGE_DIST, $
+      ISO_MERGE_PAIRS = ISO_MERGE_PAIRS, $
+      ISO_MIN_PIXELS = ISO_MIN_PIXELS, $
+      ISO_SPLIT_SMULT = ISO_SPLIT_SMULT, $
+      ISO_SPLIT_STD = ISO_SPLIT_STD, $
+      MIN_CLASSES = MIN_CLASSES
+  endif
+  GetData,ImgData=classR,FileName = classMap, Fid=fid4
+  nc = max(classR) - min(classR) + 1  ;Number of class
 
-  ;Result of classification
-  ClassR = Envi_Get_Data(Fid = r_fid,dims = dims_fine,pos=0)
+  ;calculate the Abundance, this step could be optimized by matrix calculation
+  coarseAbun = dblarr(nsc, nlc, nc) ;Abundance of coarse pixels
+  for i = 0, nsc-1 do begin
+    for j = 0, nlc-1 do begin
+      fineTmp = ClassR[i*sf:(i+1)*sf-1, j*sf:(j+1)*sf-1]
 
-  ;Number of class
-  classNumber = max(classR) - min(classR) + 1
-
-  ;Abundance of Coarse pixel
-  coarseAbun = dblarr(ns_coarse, nl_coarse, classNumber)
-
-  ;calculate the Abundance
-  ;how to optimize?
-  for i = 0, ns_coarse-1 do begin
-    for j = 0, nl_coarse-1 do begin
-      fineTmp = ClassR[i*scale_factor:(i+1)*scale_factor-1, j*scale_factor:(j+1)*scale_factor-1]
-
-      for k = 0, classNumber-1 do begin
+      for k = 0, nc-1 do begin
         tmp = where(fineTmp eq k+1, num_ic)
-        coarseAbun[i,j,k] = num_ic / (scale_factor*scale_factor)
+        coarseAbun[i,j,k] = num_ic/(sf*sf)
       endfor
     endfor
   endfor
 
-  ;Unmixing result
-  finePre = dblarr(ns_fine, nl_fine)
-
-  ;constrained
-  coarseChange = coarse2 - coarse1
-  
+  ;constraints
+  coarseChange = coarse2 - coarse1 ;coarse temporal change
   stdK_coarse=stddev(coarseChange)
   minK_coarse=min(coarseChange)
   maxK_coarse=max(coarseChange)
+  
+  ;Unmix the coarse temporal change
+  finePre = dblarr(ns, nl, nb)
+  for bands = 0, nbc-1 do begin
+    for i = 0, nsc-1 do begin
+      for j = 0, nlc-1 do begin
+        ai=max([0,i-winS])                         ; the MODIS window location
+        bi=min([nsc-1,i+winS-1])
+        aj=max([0,j-winS])
+        bj=min([nlc-1,j+winS-1])
 
-  ;Unmixing
-  for i = 0, ns_coarse-1 do begin
-    for j = 0, nl_coarse-1 do begin
-      ai=max([0,i-winS])                         ; the MODIS window location
-      bi=min([ns_coarse-1,i+winS])             
-      aj=max([0,j-winS])
-      bj=min([nl_coarse-1,j+winS])
+        n_N = (bi-ai+1) * (bj-aj+1)
+        b = reform(coarseChange[ai:bi, aj:bj, bands], n_N)*1.0
+        A = reform(coarseAbun[ai:bi, aj:bj, *], n_N, nc)
 
+        xub=fltarr(nc,1) + min([maxK_coarse+stdK_coarse, DN_max-DN_min])
+        xlb=fltarr(nc,1) + max([minK_coarse-stdK_coarse, DN_min-DN_max])
+        c=fltarr(1,nc)+1
+        bc=[n_N*(maxK_coarse+stdK_coarse)]
+        contype=[1]
+        result=IMSL_LINLSQ(b, A, c, bc, bc, contype, Xlb = xlb, Xub = xub)       ; Constrained Least Square
+        num_nan = finite(result)
+        result[where(num_nan eq 0, /null)] = 1.0*(DN_max-DN_min)         ;set the NAN to the range of the data
 
-      n_N = (bi-ai) * (bj-aj+1)
-      b = reform(coarseChange[ai:bi, aj:bj], n_N)*1.0
-      A = reform(coarseAbun[ai:bi, aj:bj, *], n_N, classNumber)
+        tmpClass = classR[i*sf:(i+1)*sf-1, j*sf:(j+1)*sf-1]
+        patches = dblarr(sf, sf)
 
-      xub=fltarr(classNumber,1) + maxK_coarse+stdK_coarse
-      xlb=fltarr(classNumber,1) + minK_coarse-stdK_coarse
-      c=fltarr(1,classNumber)+1
-      bc=[n_N*(maxK_coarse+stdK_coarse)]
-      contype=[1]
-      result=IMSL_LINLSQ(b, A, c, bc, bc, contype, Xlb = xlb, Xub = xub)       ; Constrained Least Square
-      num_nan = finite(result)
-      result[where(num_nan eq 0, /null)] = 1.0         ;set the NAN to 10000.0
-
-      tmpClass = classR[i*scale_factor:(i+1)*scale_factor-1, j*scale_factor:(j+1)*scale_factor-1]
-      patches = dblarr(scale_factor, scale_factor)
-      
-      for m=1, classNumber do begin
-        tmp = where(tmpClass eq m, num_ic)
-        if num_ic ne 0 then begin
-          patches[tmp] = result[m-1]
-        endif
+        for m=1, nc do begin
+          tmp = where(tmpClass eq m, num_ic)
+          if num_ic ne 0 then begin
+            patches[tmp] = result[m-1]
+          endif
+        endfor
+        finePre[i*sf:(i+1)*sf-1, j*sf:(j+1)*sf-1, bands] = patches
       endfor
-      finePre[i*scale_factor:(i+1)*scale_factor-1, j*scale_factor:(j+1)*scale_factor-1] = patches
-
     endfor
   endfor
-  
   finePre = fine + finePre
-  
-  ; revise the outlier value in prediction result
-  ;open the second coarse NDVI (the same size with fine NDVI)
-  CoarseNDVI2 = Basename + 'T2_480_NDVI_biliNear'
-  GetData,ImgData=coarse3,FileName = CoarseNDVI2, Fid=fid5
-  ind = where((finePre gt 1.0) or (finePre lt -1.0), num_i)
-  if num_i gt 0 then begin
-    finePre[ind] = coarse3[ind]
-  endif
 
   map_info = envi_get_map_info(fid = fid3)
-  OutName = Basename + 'Result2'
-  Envi_Write_Envi_File, finePre, Out_Name = OutName, r_fid=fid_temp, ns = ns_fine, nl = nl_fine, nb = 1, MAP_INFO=map_info
+  Envi_Write_Envi_File, finePre, Out_Name = OutName, r_fid=fid_temp, ns = ns, nl = nl, nb = nb, MAP_INFO=map_info
 
-  envi_file_mng, id = fid1, /remove
-  envi_file_mng, id = fid2, /remove
-  envi_file_mng, id = fid3, /remove
-  envi_file_mng, id = fid4, /remove
-  envi_file_mng, id = fid5, /remove
-  envi_file_mng, id = r_fid, /remove
-  ;envi_file_mng, id = fid_temp, /remove
+;  envi_file_mng, id = fid1, /remove
+;  envi_file_mng, id = fid2, /remove
+;  envi_file_mng, id = fid3, /remove
+;  envi_file_mng, id = fid4, /remove
+;  envi_file_mng, id = fid_temp, /remove
 
   print, 'time used:', floor((systime(1)-t0)/3600), 'h',floor(((systime(1)-t0) mod 3600)/60),'m',(systime(1)-t0) mod 60,'s'
 
